@@ -2,6 +2,8 @@
 import numpy as np
 import pandas as pd
 from math import ceil
+from matplotlib import pyplot as plt
+from datetime import date
 
 #Options
 print("""Options:\n
@@ -11,6 +13,7 @@ print("""Options:\n
     R_A: display the existing data [read_all(title)]
     D_A: delete the existing data [delete_all(title)]
     W_A: overwrite the existing data [write_all(df, title)]
+    V_A: visualize existing data [plot_all(x_feature, y_feature, kind, title)]
     R_R: read the index-th row [read_row(index, title)]
     A_R: append the created row [append_row(row, title)]
     D_R: delete the index-th row [delete_row(index, title)]
@@ -19,7 +22,8 @@ print("""Options:\n
 \n""")
 
 #File configuration
-title = input("Enter the name of the file (default: 'table_0'): ")
+print("Enter the name of the file (default: 'table_0'): ")
+title = input()
 if(title == ""):
     title = "table_0"
 
@@ -31,6 +35,22 @@ def read_all(title = title):
 def write_all(df, title = title):
     df.to_csv("datasets/"+title+".csv", mode = "w")
 
+#Visualize existing data [plot_all(x_feature, y_feature, kind, title)]
+def plot_all(x_feature, y_feature, kind = "line", title = title):
+    df = read_all(title)
+    if(x_feature == "index" and y_feature in df.columns):
+        plotted = df[[y_feature]].reset_index()
+    elif(x_feature in df.columns and y_feature in df.columns):
+        plotted = df[[x_feature, y_feature]]
+    else:
+        print("Enter valid feature names!")
+    fig, ax = plt.subplots(1, 1, figsize = (10, 10))
+    del fig
+    if(kind):
+        plotted.plot(x = x_feature, y = y_feature, kind = kind, ax = ax)
+    ax.set_title(kind+" plot: "+x_feature+" ~ "+y_feature)
+    plt.show()
+    
 #Append the created row [append_row(row, title)]
 def append_row(row, title = title):
     df_ = pd.read_csv("datasets/"+title+".csv").drop("Unnamed: 0", 1)
@@ -40,7 +60,7 @@ def append_row(row, title = title):
 #Delete the index-th row [delete_row(index, title)]
 def delete_row(index, title = title):
     df = read_all(title)
-    print("Deleted: \n", pd.DataFrame(df.iloc[index]))
+    print("Deleted: \n", pd.DataFrame(df.iloc[index]).transpose())
     df.drop(df.index[index], axis = 0, inplace = True)
     write_all(df, title)
 
@@ -66,15 +86,16 @@ def update_one(index, feature, value, title = title):
 
 #Create a row [create_row(n_student, n_normal, discount_percent, unit_price, title)]
 def create_row(n_student, n_normal, discount_percent, unit_price, title = title):
+    date_of = date.today().strftime("%d-%m-%Y")
     n_total = n_student + n_normal
     student_ratio = n_student / n_total
     old_total = unit_price * n_total
     new_total = (n_student * (1-discount_percent) + n_normal) * unit_price
     difference = old_total - new_total
     new_customers = ceil(difference / ((1-discount_percent) * unit_price))
-    row = pd.DataFrame(np.array([n_student, n_normal, student_ratio, discount_percent,
+    row = pd.DataFrame(np.array([date_of, n_student, n_normal, student_ratio, discount_percent,
      unit_price, old_total, new_total, difference, new_customers]).reshape(1, -1), 
-    columns = ["n_student", "n_normal", "student_ratio", "discount_percent",
+    columns = ["date", "n_student", "n_normal", "student_ratio", "discount_percent",
      "unit_price", "old_total", "new_total", "difference", "new_customers"])
     return row
 
@@ -87,8 +108,9 @@ df_write = pd.DataFrame()
 #Loop configuration
 opened = True
 while(opened):
-    #Operation code 
-    opcode = input("What do you want to do? ")
+    #Operation code
+    print("What do you want to do? ")
+    opcode = input()
     if(opcode == "R_A"):
         df_read = read_all()
         print(df_read)
@@ -97,18 +119,46 @@ while(opened):
     elif(opcode == "W_A"):
         print("Overwritten: \n", df_write)
         write_all(df_write)
+    elif(opcode == "V_A"):
+        df = read_all()
+        print("Features: \n", ", ".join(df.columns), "\n")
+        print("Enter the feature for x_axis: ")
+        x_feature = input()
+        print("Enter the feature for y_axis: ")
+        y_feature = input()
+        print("""You can specify the type of plot. Valid types are:
+            ‘line’ : line plot
+            ‘bar’ : vertical bar plot
+            ‘barh’ : horizontal bar plot
+            ‘hist’ : histogram
+            ‘box’ : boxplot
+            ‘kde’ : Kernel Density Estimation plot
+            ‘density’ : same as ‘kde’
+            ‘area’ : area plot
+            ‘pie’ : pie plot
+            ‘scatter’ : scatter plot
+            ‘hexbin’ : hexbin plot""")
+        print("Enter the kind of plot (default = 'line')")
+        kind = input()
+        plot_all(x_feature, y_feature, kind)
     elif(opcode == "R_R"):
-        index = int(input("Enter the index of the row: "))
+        print("Enter the index of the row: ")
+        index = int(input())
         row_read = read_row(index)
         print(row_read)
     elif(opcode == "D_R"):
-        index = int(input("Enter the index of the row: "))
+        print("Enter the index of the row: ")
+        index = int(input())
         delete_row(index)
     elif(opcode == "C_R"):
-        n_student = int(input("Enter the number of students: "))
-        n_normal = int(input("Enter the number of normal people: "))
-        discount_percent = int(input("Enter the discount percent (without %): "))/100
-        unit_price = int(input("Enter the price of a single product/service: "))
+        print("Enter the number of students: ")
+        n_student = int(input())
+        print("Enter the number of normal people: ")
+        n_normal = int(input())
+        print("Enter the discount percent (without %): ")
+        discount_percent = int(input())/100
+        print("Enter the price of a single product/service: ")
+        unit_price = int(input())
         row_created = create_row(n_student, n_normal, discount_percent, unit_price)
         print(row_created)
     elif(opcode == "A_R"):
@@ -116,9 +166,12 @@ while(opened):
         print(row)
         append_row(row)
     elif(opcode == "U_O"):
-        index = int(input("Enter the index of the row: "))
-        feature = input("Enter the feature that you want to update: ")
-        value = int(input("Enter the new value: "))
+        print("Enter the index of the row: ")
+        index = int(input())
+        print("Enter the feature that you want to update: ")
+        feature = input()
+        print("Enter the new value: ")
+        value = int(input())
         update_one(index, feature, value)
     elif(opcode == "ESC"):
         opened = False
@@ -150,4 +203,3 @@ while(opened):
             print("Last write dataframe: \n", df_write)
     else:
         print("Enter a valid operation code.")
-
